@@ -1,0 +1,752 @@
+<!DOCOcarina of Time"en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hyrule Chronological Registry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #161b22; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #8b949e; }
+        .grid-bg {
+            background-size: 30px 30px;
+            background-image:
+                linear-gradient(to right, rgba(48,54,61,0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(48,54,61,0.08) 1px, transparent 1px);
+        }
+        .era-band {
+            position: absolute;
+            border: 1px solid rgba(255,255,255,.05);
+            border-radius: 8px;
+            backdrop-filter: blur(1px);
+        }
+        .era-label {
+            position: absolute;
+            top: 4px; left: 8px;
+            font-size: 8px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: #9ca3af;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+        .node-label {
+            background: rgba(2, 6, 23, 0.75);
+            border: 1px solid rgba(255,255,255,.08);
+            padding: 1px 5px;
+            border-radius: 999px;
+            font-size: 8px;
+            font-family: monospace;
+            font-weight: 700;
+            letter-spacing: .04em;
+            white-space: nowrap;
+            pointer-events: none;
+            transform-origin: center top;
+        }
+        .node-tooltip {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #111827;
+            border: 1px solid #374151;
+            color: #e5e7eb;
+            font-size: 9px;
+            font-family: monospace;
+            padding: 4px 8px;
+            border-radius: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 9999;
+            transition: opacity 0.15s;
+            box-shadow: 0 4px 16px rgba(0,0,0,.7);
+        }
+        .node-wrapper:hover .node-tooltip { opacity: 1; }
+        .node-dot {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: #081019;
+            border: 2px solid #4b5563;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+            cursor: pointer;
+            position: relative;
+        }
+        .node-dot:hover { transform: scale(1.3); border-color: #9ca3af; }
+        .node-dot.selected { transform: scale(1.5) !important; border-color: #ffffff !important; }
+        .node-inner { width: 5px; height: 5px; border-radius: 50%; }
+        #detail-pane { animation: fadeIn 0.2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+        button:disabled { opacity: 0.3; cursor: default; }
+    </style>
+</head>
+<body class="font-sans antialiased h-screen w-screen flex flex-col overflow-hidden">
+
+    <!-- ── HEADER ── -->
+    <header class="flex-none border-b border-gray-800 bg-gray-900 px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 z-30">
+        <div>
+            <h1 class="text-lg font-bold text-blue-400 tracking-wide leading-none">HYRULE CHRONOLOGICAL REGISTRY</h1>
+            <p class="text-[10px] text-gray-500 mt-0.5">Interactive Multi-Branch Timeline · <span class="text-gray-600">← → to navigate · drag to pan · Two-Stage Fracture Interpretation</span></p>
+        </div>
+        <div class="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-lg p-1 text-[11px]">
+            <span class="text-gray-500 px-1 font-mono text-[10px]">Scale:</span>
+            <button onclick="adjustZoom(-0.1)" class="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 rounded transition font-bold text-white">−</button>
+            <span id="zoom-readout" class="w-10 text-center font-mono font-bold text-blue-400">60%</span>
+            <button onclick="adjustZoom(0.1)" class="px-2 py-0.5 bg-gray-800 hover:bg-gray-700 rounded transition font-bold text-white">+</button>
+            <button onclick="resetZoom()" class="px-1.5 py-0.5 text-gray-400 hover:text-white ml-0.5 text-[10px]">Reset</button>
+        </div>
+    </header>
+
+    <!-- ── TIMELINE CANVAS ── -->
+    <section class="flex-none h-[110px] bg-[#090d13] border-b border-gray-800 relative overflow-hidden z-20">
+        <div id="canvas-viewport" class="w-full h-full overflow-auto custom-scrollbar grid-bg select-none" style="cursor:grab">
+            <div id="canvas-sizer" style="position:relative; width:4920px; height:66px;">
+                <div id="tree-canvas" style="position:absolute; width:8200px; height:110px; transform-origin:0 0;">
+
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+
+                        <!-- ═══ PRE-SPLIT UNIFIED LINE ═══ -->
+                        <path d="M 40,55 L 3320,55" stroke="#3b82f6" stroke-width="2.5" fill="none" opacity="0.5"/>
+
+                        <!-- ═══ FIRST SPLIT (x=3320): Hero Fails vs Hero Succeeds ═══ -->
+                        <!-- DOWNFALL: Hero Fails — branches sharply UP to y=22 -->
+                        <path d="M 3320,55 C 3390,55 3430,22 3500,22 L 5300,22" stroke="#ef4444" stroke-width="2.5" fill="none" opacity="0.5"/>
+                        <!-- HERO SUCCEEDS BRIDGE: continues straight at y=55 toward second split -->
+                        <path d="M 3320,55 L 3740,55" stroke="#3b82f6" stroke-width="2" fill="none" opacity="0.3"/>
+
+                        <!-- ═══ SECOND SPLIT (x=3740): Adult vs Child ═══ -->
+                        <!-- ADULT: No hero in the future — continues straight at y=55 -->
+                        <path d="M 3740,55 L 5300,55" stroke="#f59e0b" stroke-width="2.5" fill="none" opacity="0.5"/>
+                        <!-- CHILD: Link grows up in the past — branches DOWN to y=90 -->
+                        <path d="M 3740,55 C 3810,55 3850,90 3920,90 L 5300,90" stroke="#10b981" stroke-width="2.5" fill="none" opacity="0.5"/>
+
+                        <!-- ═══ CONVERGENCE: all three branches merge at x=5600 ═══ -->
+                        <path d="M 5300,22 C 5430,22 5510,55 5600,55" stroke="#ef4444" stroke-width="2.5" fill="none" opacity="0.5"/>
+                        <path d="M 5300,55 L 5600,55" stroke="#f59e0b" stroke-width="2.5" fill="none" opacity="0.5"/>
+                        <path d="M 5300,90 C 5430,90 5510,55 5600,55" stroke="#10b981" stroke-width="2.5" fill="none" opacity="0.5"/>
+
+                        <!-- ═══ POST-CONVERGENCE UNIFIED LINE ═══ -->
+                        <path d="M 5600,55 L 8150,55" stroke="#a855f7" stroke-width="2.5" fill="none" opacity="0.5"/>
+
+                        <!-- First split marker -->
+                        <circle cx="3320" cy="55" r="5" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5" opacity="0.8"/>
+                        <!-- Second split marker -->
+                        <circle cx="3740" cy="55" r="5" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5" opacity="0.8"/>
+                        <!-- Convergence marker -->
+                        <circle cx="5600" cy="55" r="5" fill="#1e293b" stroke="#94a3b8" stroke-width="1.5" opacity="0.8"/>
+
+                        <!-- Split 1 label line -->
+                        <line x1="3320" y1="4" x2="3320" y2="32" stroke="#94a3b8" stroke-width="0.5" opacity="0.3" stroke-dasharray="3,3"/>
+                        <!-- Split 2 label line -->
+                        <line x1="3740" y1="4" x2="3740" y2="32" stroke="#94a3b8" stroke-width="0.5" opacity="0.3" stroke-dasharray="3,3"/>
+                    </svg>
+
+                    <!-- ══ PRE-SPLIT ERA BANDS ══ -->
+                    <div class="era-band" style="left:40px; top:28px; width:220px; height:54px; background:rgba(59,130,246,0.02); border-color:rgba(59,130,246,0.1)">
+                        <div class="era-label text-blue-500">I. Post–Skyward Era (0 AC) · The Zonai</div>
+                    </div>
+                    <div class="era-band" style="left:270px; top:28px; width:680px; height:54px; background:rgba(59,130,246,0.03); border-color:rgba(59,130,246,0.12)">
+                        <div class="era-label text-blue-400">II. Early Surface Age (~100–500 AC)</div>
+                    </div>
+                    <div class="era-band" style="left:960px; top:28px; width:1090px; height:54px; background:rgba(59,130,246,0.04); border-color:rgba(59,130,246,0.15)">
+                        <div class="era-label text-blue-300">III. Era of Foundation (~600 AC) · The Sealing of Prime Ganon</div>
+                    </div>
+                    <div class="era-band" style="left:2010px; top:28px; width:1060px; height:54px; background:rgba(30,58,138,0.06); border-color:rgba(96,165,250,0.15)">
+                        <div class="era-label text-blue-200">IV. Era of Seeping Malice (~900–1190 AC)</div>
+                    </div>
+                    <div class="era-band" style="left:3120px; top:28px; width:240px; height:54px; background:rgba(239,68,68,0.05); border-color:rgba(239,68,68,0.18)">
+                        <div class="era-label text-red-400">V. First Fracture (~1300 AC)</div>
+                    </div>
+
+                    <!-- ══ BRANCH BANDS ══ -->
+                    <!-- DOWNFALL: top strip, full width after first split -->
+                    <div class="era-band" style="left:3340px; top:4px; width:2050px; height:36px; background:rgba(239,68,68,0.03); border-color:rgba(239,68,68,0.08)">
+                        <div class="era-label text-red-400">Downfall Timeline · First Fracture — The Hero Falls</div>
+                    </div>
+                    <!-- BRIDGE: center strip between first and second split -->
+                    <div class="era-band" style="left:3340px; top:38px; width:410px; height:34px; background:rgba(59,130,246,0.04); border-color:rgba(59,130,246,0.15)">
+                        <div class="era-label text-blue-300">Hero Prevails → Second Fracture</div>
+                    </div>
+                    <!-- ADULT: center strip after second split -->
+                    <div class="era-band" style="left:3760px; top:38px; width:1630px; height:34px; background:rgba(245,158,11,0.03); border-color:rgba(245,158,11,0.08)">
+                        <div class="era-label text-amber-400">Adult Timeline · Second Fracture — The Heroless Future</div>
+                    </div>
+                    <!-- CHILD: bottom strip after second split -->
+                    <div class="era-band" style="left:3760px; top:73px; width:1630px; height:33px; background:rgba(16,185,129,0.03); border-color:rgba(16,185,129,0.08)">
+                        <div class="era-label text-emerald-400">Child Timeline · Second Fracture — Link Grows Up in the Past</div>
+                    </div>
+
+                    <!-- ══ POST-CONVERGENCE BANDS ══ -->
+                    <div class="era-band" style="left:5490px; top:28px; width:600px; height:54px; background:rgba(168,85,247,0.02); border-color:rgba(168,85,247,0.1)">
+                        <div class="era-label text-purple-400">VI. Era of Convergence (0 PC)</div>
+                    </div>
+                    <div class="era-band" style="left:6150px; top:28px; width:2010px; height:54px; background:rgba(168,85,247,0.05); border-color:rgba(168,85,247,0.2)">
+                        <div class="era-label text-purple-300 font-black">VII. Unified Era of the Wild (~190,000 PC – 200,006 PC)</div>
+                    </div>
+
+                    <div id="node-layer" class="absolute inset-0"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── DETAIL AREA ── -->
+    <section class="flex-1 flex flex-col min-h-0 bg-[#0d1117] z-10">
+
+        <!-- Scrollable card zone — nav lives OUTSIDE so it never gets buried by long text -->
+        <div id="scroll-area" class="flex-1 overflow-y-auto custom-scrollbar px-3 pt-3 pb-1">
+            <div class="max-w-4xl mx-auto">
+
+                <div id="empty-state" class="text-center py-12">
+                    <div class="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 flex items-center justify-center mx-auto text-gray-400 font-bold mb-3 animate-pulse text-lg">!</div>
+                    <h3 class="text-sm font-semibold text-gray-300">No Target Point Selected</h3>
+                    <p class="text-xs text-gray-500 mt-1 max-w-sm mx-auto">Select any node along the timeline to populate historical record files.</p>
+                </div>
+
+                <div id="detail-pane" class="hidden pb-2">
+                    <div class="border border-gray-800 bg-gray-900/40 rounded-xl backdrop-blur p-3 shadow-2xl">
+
+                        <!-- Top row: badge / title / year · thumbnail -->
+                        <div class="flex items-start gap-3 mb-2">
+                            <div class="flex-1 min-w-0">
+                                <span id="detail-badge" class="text-[9px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded border"></span>
+                                <h2 id="detail-title" class="text-base font-bold tracking-wide text-white leading-snug mt-1"></h2>
+                                <p id="detail-year" class="text-[10px] font-mono font-bold text-blue-400 mt-0.5"></p>
+                                <p id="detail-game" class="text-[9px] font-mono text-amber-500/80 mt-0.5 hidden"></p>
+                            </div>
+                            <!-- Compact inline thumbnail -->
+                            <div id="detail-image-container" class="hidden flex-none">
+                                <div class="border border-gray-700 rounded-lg overflow-hidden bg-gray-950" style="width:76px;height:76px">
+                                    <img id="detail-image" src="" alt="Registry Artifact" class="w-full h-full object-cover object-top" onerror="this.closest('#detail-image-container').classList.add('hidden')">
+                                </div>
+                                <p class="text-[7px] font-mono text-gray-600 text-center mt-0.5 uppercase tracking-wide">Wiki Asset</p>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <p id="detail-description" class="text-[11px] text-gray-300 leading-relaxed border-l-2 border-gray-700 pl-3 bg-gray-950/20 py-2 rounded-r"></p>
+
+                        <!-- Branch jump links — only rendered for fracture/split nodes -->
+                        <div id="detail-branches" class="hidden mt-3 pt-2 border-t border-gray-800">
+                            <p class="text-[8px] font-mono text-gray-500 uppercase tracking-widest mb-1.5">↓ Timeline Branches From This Point</p>
+                            <div id="branch-links" class="flex flex-wrap gap-1.5"></div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ALWAYS-VISIBLE NAV STRIP — pinned to bottom, never scrolls away -->
+        <div class="flex-none border-t border-gray-800 bg-gray-900/90 backdrop-blur px-3 py-2 flex items-center gap-2">
+            <button id="btn-prev" onclick="navigate(-1)"
+                class="px-3 py-1.5 text-[10px] font-mono font-bold bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg transition-all border border-gray-700 disabled:opacity-30 disabled:cursor-default">← Prev</button>
+            <div class="flex-1 flex flex-col items-center leading-tight">
+                <span id="nav-counter" class="text-[9px] font-mono text-gray-500"></span>
+                <span class="text-[7px] text-gray-700 font-mono">swipe card ← → to navigate</span>
+            </div>
+            <button id="btn-next" onclick="navigate(1)"
+                class="px-3 py-1.5 text-[10px] font-mono font-bold bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg transition-all border border-gray-700 disabled:opacity-30 disabled:cursor-default">Next →</button>
+        </div>
+
+    </section>
+
+    <script>
+    const chronologyData = [
+
+        /* ══════════════════════════════════════════════
+           SECTION 1 · PRE-SPLIT UNIFIED HISTORY
+           The single, unbroken stream before the Ocarina Event.
+           All of these events happened in every branch.
+        ══════════════════════════════════════════════ */
+
+        { id:"departure", game:"Skyward Sword · Series Lore", name:"The Divine Departure", year:"0 AC", type:"I. Post–Skyward Era",
+          x:80, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/3/3d/ALttP_Goddesses_Artwork.png",
+          desc:"The three goddesses Din, Nayru, and Farore completed the formation of the physical world and departed the mortal realm. Din shaped the terrain; Nayru established the laws of reality and set time in motion; Farore populated the world with living creatures. Upon departure, they left the Triforce — three interlocking triangles embodying Power, Wisdom, and Courage — sealed within the Sacred Realm, a dimension adjacent to the mortal plane accessible only through specific means. This moment marks the beginning of recorded history and the transition of stewardship to mortal peoples." },
+
+        { id:"zonai_people", game:"Tears of the Kingdom", name:"The Zonai — A Sky-Born People", year:"~0–100 AC", type:"I. Post–Skyward Era",
+          x:240, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/b/b3/SS_Sky_Artwork.png",
+          desc:"The Zonai were a technologically and magically advanced people distinguished from surface civilizations by their sky-dwelling origins and mastery of a unique form of sacred energy. Their constructions — stone fortresses, floating sky islands, and self-sustaining mechanical devices — far exceeded the capabilities of any contemporary surface people. Notable individuals include Rauru, who later founded the kingdom of Hyrule, and his sister Mineru, an engineer whose constructs remained functional for millennia after her death. The Zonai population was never large and declined steadily throughout the early surface age." },
+
+        { id:"fragmented", game:"Series Lore · Pre-History", name:"Fragmented Beginnings", year:"~100 AC", type:"II. Early Surface Age",
+          x:420, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/e/e4/SS_Link_Artwork.png",
+          desc:"Following the departure of the goddesses, the surface world was divided among several distinct peoples with minimal contact between them. Hylians occupied fertile lowlands; Gerudo inhabited the western desert; Gorons settled volcanic mountain ranges; Zora established communities along major waterways. No centralized authority existed. Knowledge of the goddesses and the Triforce had already begun to degrade into oral tradition within the first century." },
+
+        { id:"sacred_traditions", game:"Series Lore · Pre-History", name:"Proto-Sacred Traditions", year:"~300 AC", type:"II. Early Surface Age",
+          x:600, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/f/f8/SS_Master_Sword_Artwork.png",
+          desc:"Organized spiritual systems emerged around natural sites retaining residual divine energy — springs, stone formations, sacred groves. Each people developed distinct traditions for engaging with these sites. The Triforce was treated across most traditions as an abstract object of reverence rather than a physically attainable artifact. This period is characterized by relative stability and the codification of spiritual practices that would persist in modified forms throughout later history." },
+
+        { id:"zonai", game:"Tears of the Kingdom · Series Lore", name:"The Withdrawal of the Zonai", year:"~400–500 AC", type:"II. Early Surface Age",
+          x:790, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/c/c6/SSHD_Key_Artwork.jpg",
+          desc:"By approximately the fifth century AC, the Zonai had ceased active presence in the surface world. The cause of their decline is not recorded. Their constructions remained intact but unmaintained. Surface peoples encountering these remains lacked the contextual knowledge to attribute them correctly, leading to widespread classification of Zonai works as divine artifacts. This misattribution became foundational to Hylian political mythology. Rauru remained among the few Zonai still active on the surface during this period." },
+
+        { id:"founding", game:"Tears of the Kingdom", name:"The Founding of the Kingdom", year:"~600 AC", type:"III. Era of Foundation",
+          x:990, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/d/d7/TotK_Key_Artwork.jpg",
+          desc:"Rauru, one of the last surviving Zonai, established the first unified kingdom of Hyrule through diplomatic consolidation of the surface peoples. The kingdom incorporated Hylians, Gerudo, Gorons, Zora, and Rito under shared governance and law. His consort, Queen Sonia, possessed documented ability to manipulate temporal energy and served alongside him in governance. This represents the first centralized political authority in recorded Hyrulean history." },
+
+        { id:"fealty", game:"Tears of the Kingdom", name:"The False Fealty of Ganondorf", year:"~600 AC", type:"III. Era of Foundation",
+          x:1090, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/a/a6/TotK_Ganondorf_Artwork_2.png",
+          desc:"Ganondorf, king of the Gerudo and bearer of the Triforce of Power, presented himself at Rauru's court as an ally seeking peaceful integration with the new kingdom. His stated intentions were diplomatic. He maintained his position within the court for an extended period, gathering intelligence on the kingdom's magical infrastructure while concealing his intent to locate and claim the Triforce." },
+
+        { id:"assassination", game:"Tears of the Kingdom", name:"The Assassination of Queen Sonia", year:"~600 AC", type:"III. Era of Foundation",
+          x:1290, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/b/b5/TotK_Demon_King_Ganondorf_Artwork_2.png",
+          desc:"Ganondorf killed Queen Sonia using a puppet construct, then extracted her Secret Stone — a jewel concentrating sacred power — from her body for ritual use. Sonia's capacity for temporal manipulation made her both a security liability and a necessary power source for his planned transformation. Her death ended the kingdom's founding period of stability and initiated open conflict." },
+
+        { id:"demon_king", game:"Tears of the Kingdom", name:"The Rise of the Demon King", year:"~600 AC", type:"III. Era of Foundation",
+          x:1490, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/8/87/TotK_Demon_King_Ganondorf_Artwork.png",
+          desc:"By consuming Sonia's Secret Stone directly, Ganondorf underwent a physical transformation that eliminated his mortal limitations. The resulting entity — referred to historically as the Demon King — possessed sustained levels of malice sufficient to command monster armies and project destructive power at range. Conventional weapons were ineffective against him. The transformation was permanent." },
+
+        { id:"first_war", game:"Tears of the Kingdom", name:"The First Imprisoning War", year:"~600 AC", type:"III. Era of Foundation",
+          x:1690, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/b/b4/ALttP_Sages_Sealing_Artwork.png",
+          desc:"The Demon King mobilized a monster army against the kingdom of Hyrule. Conventional military forces were insufficient. Rauru responded by empowering representatives of each allied people — Goron, Zora, Rito, and dissident Gerudo — as Sages: individuals capable of channeling collective sacred energy for the purpose of sealing rather than direct combat. The conflict continued until conditions for a sealing ritual could be met." },
+
+        { id:"prime_seal", game:"Tears of the Kingdom", name:"The Sacrificial Seal of Prime Ganon", year:"~600 AC", type:"III. Era of Foundation",
+          x:1890, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/1/1e/TotK_Ganondorf_Model_3.png",
+          desc:"Unable to destroy the Demon King, Rauru channeled his remaining sacred energy through his right arm to physically immobilize Ganondorf and drive him into the bedrock beneath Hyrule Castle. The seal required Rauru's life as its sustaining mechanism; his arm, preserved by residual divine energy, physically restrained the imprisoned figure for approximately 200,000 years. This sealed entity is referred to as Prime Ganon — the original source from which subsequent manifestations of Ganon would project. The seal was finite." },
+
+        { id:"malice_leak", game:"Series Lore · Timeline Theory", name:"The Leak of Subterranean Malice", year:"~900 AC", type:"IV. Era of Seeping Malice",
+          x:2120, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/1/1e/TotK_Ganondorf_Model_3.png",
+          desc:"Approximately three centuries after the sealing, measurable effects of Prime Ganon's imprisonment began appearing at the surface. Sacred water sources showed contamination. Animal behavior in regions above underground power concentrations became irregular. Spiritual practitioners reported detecting unfamiliar corruption in the land's energy channels. The kingdom documented the anomalies but lacked sufficient historical context to identify their origin." },
+
+        { id:"hostilities", game:"Series Lore · A Link to the Past Backstory", name:"Outbreak of Hostilities", year:"~1050 AC", type:"IV. Era of Seeping Malice",
+          x:2340, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/a/ac/TP_Artwork.png",
+          desc:"Knowledge of the Sacred Realm and its Triforce spread beyond scholarly circles, triggering coordinated attempts by multiple factions to locate the gateway. Concurrent seepage of corrupting energy from Prime Ganon's imprisonment is believed to have amplified existing political tensions. A prolonged multi-front conflict emerged across the kingdom. No faction successfully located the Sacred Realm during this period." },
+
+        { id:"temple_time", game:"Ocarina of Time", name:"Construction of the Temple of Time", year:"~1075 AC", type:"IV. Era of Seeping Malice",
+          x:2560, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/e/e0/ALttP_Sacred_Grove_Artwork.png",
+          desc:"In response to escalating conflict over the Sacred Realm, the kingdom constructed the Temple of Time directly over the gateway between the mortal world and the Sacred Realm. Access was secured through a layered lock system: three Spiritual Stones held by separate peoples, the Ocarina of Time, the Song of Time, and the Master Sword — a sacred blade installed in a central pedestal that rejected unworthy wielders and passively sealed the Sacred Realm while resting undrawn. The system was designed to prevent unauthorized entry while preserving a legitimate access mechanism." },
+
+        { id:"first_manifest", game:"Series Lore · Timeline Theory", name:"Birth of the First Manifested Incarnation", year:"~1180 AC", type:"IV. Era of Seeping Malice",
+          x:2780, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/a/a6/TotK_Ganondorf_Artwork_2.png",
+          desc:"The accumulated malice radiating from Prime Ganon's imprisonment reached sufficient concentration to produce a living vessel. A male child was born among the Gerudo — already a statistically rare occurrence, with males appearing approximately once per century — bearing an abnormally high saturation of dark energy from birth. This individual is categorized as the first Manifested Incarnation: a physical projection of Prime Ganon's will, distinct from Prime Ganon himself, who remained sealed below." },
+
+        { id:"civil_end", game:"Ocarina of Time · Backstory", name:"The End of the Civil War", year:"~1190 AC", type:"IV. Era of Seeping Malice",
+          x:2990, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/a/a1/TotK_Zelda_Artwork.png",
+          desc:"The multi-front conflict over the Sacred Realm ended through a combination of military attrition and centralized enforcement. Surviving factions were subdued and territorial boundaries were restabilized. The Temple of Time remained intact. The Manifested Incarnation born during this period was approaching adulthood as the conflict concluded." },
+
+        /* ── THE FRACTURE EVENT ── */
+        { id:"ocarina_split", game:"Ocarina of Time", name:"The Ocarina Event — History Fractures", year:"~1300 AC / 0 HT", type:"V. First Fracture",
+          x:3180, y:55, color:"red",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/2/25/TP_Link_Artwork.png",
+          branches:[
+            { id:"df_defeat", game:"Series Lore · Timeline Theory",    label:"The Hero Falls",    color:"red",  dir:"Downfall Timeline" },
+            { id:"hero_prevails", game:"Ocarina of Time", label:"The Hero Prevails", color:"blue", dir:"Success Branch" }
+          ],
+          desc:"In the Downfall branch, the Hero of Time was killed during the final confrontation with the Manifested Incarnation. With both the hero and the princess defeated, the Incarnation obtained all three Triforce pieces, gaining unconditional wish-granting power. He used this to transform the Sacred Realm into a Dark World under his control. History continued without a designated champion." },
+
+        /* ══════════════════════════════════════════════
+           SECTION 2 · FIRST FRACTURE
+           The battle's outcome creates two branches.
+           Branch A: The Hero Falls → Downfall Timeline
+           Branch B: The Hero Prevails → Second Fracture Pending
+        ══════════════════════════════════════════════ */
+
+        /* ── BRANCH B (BRIDGE): HERO PREVAILS ── */
+        { id:"hero_prevails", name:"The Hero Prevails", year:"0 HT", type:"First Fracture · Hero Succeeds",
+          x:3500, y:55, color:"blue",
+          branches:[
+            { id:"zelda_sends_back", game:"Ocarina of Time", label:"Zelda Returns Link to the Past", color:"red", dir:"Second Fracture" }
+          ],
+          desc:"Princess Zelda used the Ocarina of Time to return Link to his childhood, restoring the years he had lost to stasis. The act introduced a second paradox: a person with complete knowledge of a future that could no longer occur, returned to a point before it began. Combined with residual instability from the first fracture and the influence of Demise's curse, a second divergence formed. The adult future continued without the hero as the Adult Timeline; the past the hero returned to continued with his presence as the Child Timeline." },
+
+        /* ── SECOND FRACTURE POINT ── */
+        { id:"zelda_sends_back", game:"Ocarina of Time", name:"Zelda Returns Link to the Past", year:"0 HT", type:"Second Fracture Point",
+          x:3740, y:55, color:"red",
+          branches:[
+            { id:"ad_erasure", label:"The Hero's Soul Leaves the Adult World", color:"amber",   dir:"Adult Timeline" },
+            { id:"ch_warning", label:"Link Warns of the Coming Darkness",      color:"emerald", dir:"Child Timeline" }
+          ],
+          desc:"Princess Zelda used the Ocarina of Time to return Link to his childhood, restoring the years he had lost to stasis. The act introduced a second paradox: a person with complete knowledge of a future that could no longer occur, returned to a point before it began. Combined with residual instability from the first fracture and the persistent influence of Demise's curse, a second divergence formed. The adult future continued without the hero as the Adult Timeline; the past the hero returned to continued with his presence as the Child Timeline." },
+
+        /* ══════════════════════════════════════════════
+           SECTION 3 · ADULT TIMELINE
+           Second Fracture, Branch B1.
+           Link departs. The future has no Hero of Time.
+           The seal on the Incarnation eventually fails.
+        ══════════════════════════════════════════════ */
+
+        { id:"ad_erasure", game:"Ocarina of Time", name:"The Hero's Soul Leaves the Adult World", year:"0 HT", type:"Adult Timeline",
+          x:3940, y:55, color:"amber",
+          desc:"The Adult Timeline is defined by the departure of the Hero of Time following the second fracture. The Sages's seal on the Manifested Incarnation remained in place, but without the hero or the drawn Master Sword to reinforce the balance of sacred forces, the seal was structurally weakened. No mechanism existed to produce a new chosen hero on the timetable required. The timeline continued without a designated champion." },
+
+        { id:"ad_resurrection", game:"The Wind Waker · Backstory", name:"The Resurrection of the Incarnation", year:"~200 HT", type:"Adult Timeline",
+          x:4140, y:55, color:"amber",
+          desc:"Centuries after the hero's departure, the Sages' seal on the Manifested Incarnation failed. He re-entered the Light World unopposed. No hero had been designated to counter him, and the kingdom had no comparable defensive capability. He began consolidating power without meaningful resistance." },
+
+        { id:"ad_deluge", game:"The Wind Waker · Backstory", name:"The Great Deluge", year:"~300 HT", type:"Adult Timeline",
+          x:4380, y:55, color:"amber",
+          desc:"Faced with the imminent conquest of the mortal world, the gods intervened by flooding the surface of Hyrule. Mountain peaks became islands; lower terrain was permanently submerged. The Manifested Incarnation and the ruins of Hyrule were sealed beneath the ocean by a divine barrier. A remnant population survived on elevated landmasses. The territory of Hyrule ceased to exist as a continuous landmass; the region became known as the Great Sea." },
+
+        { id:"ad_ww", game:"The Wind Waker", name:"The Era of The Wind Waker", year:"~1000 HT", type:"Adult Timeline",
+          x:4630, y:55, color:"amber",
+          desc:"Generations after the flood, the Manifested Incarnation remained active beneath the Great Sea, searching for the scattered Triforce of Wisdom. A young islander became involved in the conflict following his sister's abduction. He recovered the Master Sword from the submerged Hyrule Castle and confronted the Incarnation. The last King of Hyrule, present at the final engagement, used the complete Triforce to permanently seal the old kingdom beneath the ocean. The Incarnation was petrified. Hyrule was closed." },
+
+        { id:"ad_phantom", game:"Phantom Hourglass", name:"Phantom Hourglass", year:"~1100 HT", type:"Adult Timeline",
+          x:4900, y:55, color:"amber",
+          desc:"Following the events of The Wind Waker, the hero encountered a ghost ship in a sea adjacent to the known ocean. An entity called Bellum had been extracting the life force of the Ocean King. The hero destroyed Bellum with assistance from a sea captain named Linebeck. The adventure identified a route toward previously unexplored continental territory." },
+
+        { id:"ad_spirit", game:"Spirit Tracks", name:"The Era of Spirit Tracks", year:"~1200 HT", type:"Adult Timeline",
+          x:5260, y:55, color:"amber",
+          desc:"Survivors from the Great Sea established a new kingdom on an uninhabited continent, retaining the name Hyrule by tradition. Infrastructure was organized around a network of sacred railways — Spirit Tracks — that maintained territorial cohesion and suppressed a sealed demon. A demon lord named Malladus broke containment and attempted to inhabit the Princess as a physical vessel. He was destroyed by a young train engineer and the Princess in cooperation." },
+
+        /* ══════════════════════════════════════════════
+           SECTION 4 · CHILD TIMELINE
+           Second Fracture, Branch B2.
+           Link arrives in the past as a child, carrying
+           memories of the future. He warns the kingdom.
+           A hero exists. The future is different.
+        ══════════════════════════════════════════════ */
+
+        { id:"ch_warning", game:"Ocarina of Time", name:"Link Warns of the Coming Darkness", year:"0 HT", type:"Child Timeline",
+          x:3940, y:90, color:"emerald",
+          desc:"Returned to his childhood with complete memory of the future timeline, Link went directly to Princess Zelda and the king with detailed testimony about Ganondorf's intentions and the events that would follow. His knowledge of specific verifiable details lent the account sufficient credibility. The warning was accepted and acted upon before Ganondorf could execute his plan." },
+
+        { id:"ch_arrest", game:"Twilight Princess · Backstory", name:"The Arrest of the Incarnation", year:"~10 HT", type:"Child Timeline",
+          x:4140, y:90, color:"emerald",
+          desc:"With his scheme exposed before he could act, Ganondorf was stripped of diplomatic status and arrested. In this branch, Queen Sonia had not been assassinated and remained alive. Ganondorf had not undergone transformation and was technically still mortal, though he carried the Triforce of Power. The Sages convened to determine a sentence." },
+
+        { id:"ch_banishment", game:"Twilight Princess · Backstory", name:"Banishment to the Twilight Realm", year:"~20 HT", type:"Child Timeline",
+          x:4380, y:90, color:"emerald",
+          desc:"The Sages attempted to execute Ganondorf at the Arbiter's Grounds. The Triforce of Power prevented his death; he killed one of the Sages before the sentence could be completed. Unable to execute him, the Sages banished him through the Mirror of Twilight into the Twilight Realm — a parallel dimension inhabited by the Twili, descended from sorcerers previously exiled there. Ganondorf arrived in the Twilight Realm as a free agent, not a prisoner, and moved to assert control over its population." },
+
+        { id:"ch_majora", game:"Majora's Mask", name:"The Era of Majora's Mask", year:"~20 HT", type:"Child Timeline",
+          x:4630, y:90, color:"emerald",
+          desc:"The Hero of Time departed Hyrule to search for a companion lost during his prior adventures and was transported by a creature called Skull Kid to the parallel world of Termina. An ancient entity possessing a mask called Majora's Mask was drawing the world's moon toward the surface, threatening Termina's destruction within three days. The hero used the Ocarina of Time to reset the three-day cycle repeatedly, resolving the crisis across multiple iterations. The entity was defeated and Termina was preserved." },
+
+        { id:"ch_twilight", game:"Twilight Princess", name:"The Era of Twilight Princess", year:"~500 HT", type:"Child Timeline",
+          x:4900, y:90, color:"emerald",
+          desc:"Ganondorf, having established control over the Twilight Realm, used an internal passage to spread the Twilight into Hyrule. Affected regions were transformed into shadow states. A new hero emerged from the Ordona province — designated by the Triforce of Courage — and allied with Midna, a Twili with opposition to Ganondorf's occupation. Together they cleared the Twilight from Hyrule's regions and confronted Ganondorf in a final engagement on Hyrule Field. He died from a sword wound; without the Triforce of Power to sustain him, he could not survive it." },
+
+        { id:"ch_four_swords", game:"Four Swords Adventures", name:"The Era of Four Swords Adventures", year:"~1000 HT", type:"Child Timeline",
+          x:5260, y:90, color:"emerald",
+          desc:"A Gerudo male named Ganondorf — the first in this timeline in generations — violated tribal law by entering the Sacred Realm without sanction and acquired the Dark Mirror and a Trident of Power. He used these to raise a shadow army. He was defeated by a hero and sealed within the Four Sword. This marks the last recorded eruption of the Demon King's lineage in the Child Timeline." },
+
+        /* ══════════════════════════════════════════════
+           SECTION 5 · DOWNFALL TIMELINE
+           First Fracture, Branch A.
+           The hero falls at the final battle.
+           Ganon claims the complete Triforce.
+           The world has no champion.
+        ══════════════════════════════════════════════ */
+
+        { id:"df_defeat", name:"The Hero Falls", year:"0 HT", type:"Downfall Timeline · First Fracture",
+          x:3500, y:22, color:"red",
+          desc:"In the branch of history where the Hero of Time was defeated, the climactic battle ended in the hero's death. The Manifested Incarnation, wielding the Triforce of Power and the full accumulated force of his malice, overwhelmed the hero in their final confrontation. With the hero and princess both fallen, the Incarnation claimed all three pieces of the complete Triforce — something that had never occurred across any other branch of history. He held absolute, unconditional power: any wish he made would be granted without limit. History in this branch continued without a hero, without the Master Sword drawn, with only the Sages left standing between the Incarnation and total subjugation of the world. Their response, and the suffering it could not fully prevent, would shape this branch of history for thousands of years." },
+
+        { id:"df_imprisoning", game:"A Link to the Past · Backstory", name:"The Imprisoning War", year:"~150 HT", type:"Downfall Timeline",
+          x:3760, y:22, color:"red",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/b/b4/ALttP_Sages_Sealing_Artwork.png",
+          desc:"The Manifested Incarnation, in possession of the complete Triforce, corrupted the Sacred Realm into a Dark World and began projecting forces into Hyrule through the gateway. The Knights of Hyrule sustained severe casualties in defense. The Sages ultimately sealed the gateway between the two worlds, trapping the Incarnation within his own realm. The conflict is recorded as the Imprisoning War. The seal was maintained through the hereditary spiritual lines of the Sages." },
+
+        { id:"df_alttp", game:"A Link to the Past", name:"The Era of A Link to the Past", year:"~500 HT", type:"Downfall Timeline",
+          x:4010, y:22, color:"red",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/3/30/ALttP_Agahnim_Artwork_3.png",
+          desc:"A wizard called Agahnim rose to prominence within the kingdom and was later identified as an agent of the sealed Incarnation, tasked with breaking the Sages' seal by sacrificing their descendants. A young descendant of the Knights of Hyrule defeated Agahnim and subsequently the Incarnation within the Dark World. The Triforce was recovered and used to reverse the damage caused during the conflict." },
+
+        { id:"df_oracles", game:"Oracle of Seasons · Oracle of Ages", name:"The Oracle Wars — Seasons & Ages", year:"~600 HT", type:"Downfall Timeline",
+          x:4260, y:22, color:"red",
+          desc:"The twin witches Twinrova executed a scheme to resurrect the defeated Incarnation by igniting three symbolic flames — of Evil, Sorrow, and Despair — through coordinated suffering in the lands of Holodrum and Labrynna. A hero disrupted both operations. In a final act, Twinrova sacrificed herself to complete the ritual, producing an incomplete resurrection. The Incarnation returned without cognitive function and was destroyed before recovery could occur." },
+
+        { id:"df_awakening", game:"Link's Awakening", name:"Link's Awakening", year:"~650 HT", type:"Downfall Timeline",
+          x:4510, y:22, color:"red",
+          desc:"The hero was shipwrecked on Koholint Island following a storm at sea. The island operated according to anomalous physical laws and was revealed to be a dreamscape sustained by a sleeping entity called the Wind Fish. Waking the Wind Fish caused the island and all within it to cease to exist. The events had no direct bearing on the lineage of the Incarnation or the Triforce." },
+
+        { id:"df_albw", game:"A Link Between Worlds", name:"The Era of A Link Between Worlds", year:"~1000 HT", type:"Downfall Timeline",
+          x:4760, y:22, color:"red",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/f/f0/ALBW_Artwork.jpg",
+          desc:"A sorcerer named Yuga, acting on behalf of the dying kingdom of Lorule, sought to acquire Hyrule's Triforce to replace Lorule's own — which had been destroyed, condemning the kingdom to collapse. Yuga petrified sacred individuals to extract and channel their power, and briefly allied with a revived Ganon entity. A new hero defeated them and restored the Triforces of both kingdoms." },
+
+        { id:"df_loz", game:"The Legend of Zelda (1986)", name:"The Legend of Zelda", year:"~2000 HT", type:"Downfall Timeline",
+          x:5010, y:22, color:"red",
+          desc:"After multiple cycles of defeat and incomplete resurrection, the Manifested Incarnation returned in a substantially degraded state — reduced to an instinct-driven entity with limited strategic capacity. He seized the Triforce of Power and fragmented the Triforce of Wisdom across eight dungeon complexes. The princess was captured. A hero recovered the fragments and destroyed the Incarnation." },
+
+        { id:"df_aol", game:"The Adventure of Link", name:"The Adventure of Link", year:"~2006 HT", type:"Downfall Timeline",
+          x:5260, y:22, color:"red",
+          desc:"Followers of the defeated Incarnation sought to resurrect him by using the hero's blood as a ritual catalyst, believing the Triforce of Courage in his bloodline could reconstitute the Incarnation's essence. The hero preempted this by locating and claiming the final Triforce piece, uniting all three and negating the ritual's preconditions. The Incarnation's followers dispersed. The Downfall Timeline entered an extended period without active threat." },
+
+        /* ══════════════════════════════════════════════
+           SECTION 6 · POST-CONVERGENCE
+           The three streams drift back together over
+           vast spans of time, eventually becoming one.
+        ══════════════════════════════════════════════ */
+
+        { id:"convergence", game:"Series Lore · Timeline Theory", name:"The Great Convergence", year:"0 PC", type:"VI. Era of Convergence",
+          x:5700, y:55, color:"purple",
+          desc:"Over an indeterminate period following the resolution of major conflicts in each branch, the three divergent timelines gradually reconverged into a single historical stream. Temporal divergences produced by paradox appear to be structurally unstable over sufficiently long durations. Events from each branch were synthesized into a unified sequence. The convergence is assigned Year Zero of the Post-Convergence calendar, though the process itself spanned a significant period rather than occurring at a discrete moment." },
+
+        { id:"oblivion", game:"Series Lore · Timeline Theory", name:"The Age of Oblivion", year:"~100,000 PC", type:"VI. Era of Convergence",
+          x:5960, y:55, color:"purple",
+          desc:"By approximately 100,000 years post-convergence, the historical record of the preceding eras had been effectively lost. Repeated cycles of civilization collapse and reconstruction, accumulated linguistic drift, and the absence of a continuous archival tradition reduced all prior history to fragmentary mythology. The Triforce, the Sages, and the figures of the hero and princess survived only as symbolic references in oral tradition, disconnected from their historical origins." },
+
+        { id:"sheikah_rise", game:"Breath of the Wild · Backstory", name:"The Industrialization of Magic", year:"~190,000 PC", type:"VII. Era of the Wild",
+          x:6220, y:55, color:"purple",
+          desc:"The Sheikah clan developed an advanced technological infrastructure by synthesizing Zonai engineering principles with accumulated magical research. Their major outputs included four large autonomous weapons platforms called Divine Beasts, tens of thousands of smaller automated combat units called Guardians, and a hand-held multi-function device called the Sheikah Slate. This represented the most sophisticated military and civil technology in any recorded period of Hyrulean history." },
+
+        { id:"first_calamity", game:"Breath of the Wild · Backstory", name:"The First Great Calamity — Defeated", year:"~190,010 PC", type:"VII. Era of the Wild",
+          x:6460, y:55, color:"purple",
+          desc:"A manifestation of Calamity Ganon — accumulated malice from Prime Ganon's nearly 200,000-year imprisonment given form — emerged. A hero and princess bearing designated Triforce pieces, supported by four Champions piloting the Divine Beasts and the full complement of Guardian units, contained and sealed it. The Sheikah technology performed as designed. Following the victory, the reigning king ordered the machines buried." },
+
+        { id:"tech_ban", game:"Breath of the Wild · Backstory", name:"The Ban of Technology", year:"~190,020 PC", type:"VII. Era of the Wild",
+          x:6700, y:55, color:"purple",
+          desc:"The king ordered the Sheikah machines decommissioned and buried, citing the risk they would pose if turned against the kingdom. A faction of Sheikah who rejected this decision defected, forming the Yiga Clan in allegiance to Calamity Ganon. The machines were sealed beneath the surface and designated for reactivation only upon Calamity Ganon's return. The Yiga Clan sustained itself over the following 10,000 years in anticipation of that event." },
+
+        { id:"collapse", game:"Breath of the Wild · Backstory", name:"The Great Collapse", year:"~199,900 PC", type:"VII. Era of the Wild",
+          x:6950, y:55, color:"purple",
+          desc:"When Calamity Ganon returned approximately 10,000 years later, it immediately seized control of the Sheikah machines upon their reactivation. The Guardians attacked Hyrule's defenders. The Divine Beasts were occupied and their four Champions killed within them. The kingdom's military was destroyed by its own weapons in a single engagement. The princess activated her sealing power for the first time, containing Calamity Ganon within Hyrule Castle at the cost of indefinite personal confinement. The hero, critically injured, was placed in the Shrine of Resurrection for a 100-year recovery." },
+
+        { id:"botw", game:"Breath of the Wild", name:"The Breath of the Wild Event", year:"0 CE / ~200,000 PC", type:"VII. Era of the Wild",
+          x:7200, y:55, color:"blue",
+          image:"https://static.wikia.nocookie.net/zelda_gamepedia_en/images/5/5c/BotW_Link_Looking_Over_Hyrule_Artwork.png",
+          desc:"The hero awakened from the Shrine of Resurrection with no memory of preceding events. He explored the ruined kingdom, recovered his capabilities, freed the four Divine Beasts by resolving the malice-corrupted Champion spirits within them, and located the Master Sword. He entered Hyrule Castle and defeated Calamity Ganon. The princess, released from her century-long confinement, destroyed the remaining malice. The surface threat was contained. Prime Ganon's seal beneath the castle had been weakening throughout this period." },
+
+        { id:"upheaval", game:"Tears of the Kingdom", name:"The Upheaval — The Seal Breaks", year:"~200,005 PC", type:"VII. Era of the Wild",
+          x:7450, y:55, color:"blue",
+          image:"https://cdn.wikimg.net/en/zeldawiki/images/1/1e/TotK_Ganondorf_Model_3.png",
+          desc:"During excavation beneath Hyrule Castle, workers uncovered Prime Ganon's sealed form — the original Ganondorf, physically restrained by Rauru's preserved arm for approximately 200,000 years. The seal failed upon discovery. A concentrated release of Gloom flooded the castle's lower levels and the castle was elevated above ground level by the resulting energy discharge. The hero was struck by Gloom, which destroyed the Master Sword and rendered his right arm nonfunctional. He fell onto a sky island above the castle. Prime Ganon was no longer contained." },
+
+        { id:"causal_loop", game:"Tears of the Kingdom", name:"The Closing of the Causal Loop", year:"~200,005 PC", type:"VII. Era of the Wild",
+          x:7700, y:55, color:"blue",
+          desc:"During the Upheaval, Princess Zelda was displaced backward in time to approximately 0 AC by a temporal effect triggered by the energy released from Prime Ganon's broken seal. She arrived in the founding era carrying the destroyed Master Sword. Recognizing her presence in the past as a fixed point in the historical record, she swallowed her Secret Stone — transforming herself into an immortal dragon — to channel her life force into restoring the sword over the following 200,000 years. The Light Dragon documented throughout Hyrulean history was Zelda. She retained no memory of her prior human existence after the transformation." },
+
+        { id:"totk", game:"Tears of the Kingdom", name:"The Tears of the Kingdom Event", year:"~200,006 PC", type:"VII. Era of the Wild",
+          x:7950, y:55, color:"blue",
+          image:"https://static.wikia.nocookie.net/zelda_gamepedia_en/images/4/4c/TotK_Link_Skydiving_Artwork.png",
+          desc:"Prime Ganon, free for the first time in approximately 200,000 years, deployed phantom duplicates of himself across Hyrule while reconstituting in the depths beneath the castle. The hero, operating with a replacement arm derived from Rauru's preserved limb, navigated the underground cavern network and sky island infrastructure, assembled a new generation of Sages from the major peoples, and recovered the restored Master Sword from the Light Dragon. He confronted Prime Ganon in the original sealing chamber beneath Hyrule Castle. Prime Ganon was permanently destroyed. The cycles of Ganon's projection and reincarnation, sustained by Prime Ganon's continued existence, ended." }
+    ];
+
+    /* ─── constants ─── */
+    const CANVAS_W = 8200, CANVAS_H = 110;
+
+    const styleConfig = {
+        blue:    { badge:'bg-blue-950 text-blue-400 border-blue-800',          dot:'#3b82f6' },
+        red:     { badge:'bg-red-950 text-red-400 border-red-800',             dot:'#ef4444' },
+        amber:   { badge:'bg-amber-950 text-amber-400 border-amber-800',       dot:'#f59e0b' },
+        emerald: { badge:'bg-emerald-950 text-emerald-400 border-emerald-800', dot:'#10b981' },
+        purple:  { badge:'bg-purple-950 text-purple-400 border-purple-800',    dot:'#a855f7' }
+    };
+
+    let currentZoom = 0.6;
+    let selectedNodeId = null;
+
+    const canvasEl  = document.getElementById('tree-canvas');
+    const sizerEl   = document.getElementById('canvas-sizer');
+    const viewport  = document.getElementById('canvas-viewport');
+    const nodeLayer = document.getElementById('node-layer');
+
+    function initTree() {
+        nodeLayer.innerHTML = '';
+        chronologyData.forEach(node => {
+            const cfg = styleConfig[node.color];
+
+            const wrapper = document.createElement('div');
+            wrapper.id = `wrapper-${node.id}`;
+            wrapper.className = 'node-wrapper';
+            wrapper.style.cssText = `position:absolute; left:${node.x}px; top:${node.y}px; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:3px; z-index:10;`;
+
+            const tip = document.createElement('div');
+            tip.className = 'node-tooltip';
+            tip.innerHTML = `<span style="color:#fff;font-weight:700;">${node.name}</span><br><span style="color:#9ca3af;">${node.year}</span>`;
+
+            const btn = document.createElement('button');
+            btn.id = `node-${node.id}`;
+            btn.className = 'node-dot';
+            btn.setAttribute('aria-label', node.name);
+            btn.innerHTML = `<span class="node-inner" style="background:${cfg.dot}"></span>`;
+            btn.addEventListener('click', () => selectNode(node.id));
+
+            const lbl = document.createElement('span');
+            lbl.id = `label-${node.id}`;
+            lbl.className = 'node-label';
+            lbl.style.color = '#6b7280';
+            lbl.textContent = node.year.split(' / ')[0];
+
+            wrapper.appendChild(tip);
+            wrapper.appendChild(btn);
+            wrapper.appendChild(lbl);
+            nodeLayer.appendChild(wrapper);
+        });
+    }
+
+    function setActive(id, on) {
+        const btn = document.getElementById(`node-${id}`);
+        const lbl = document.getElementById(`label-${id}`);
+        if (!btn) return;
+        const cfg = styleConfig[chronologyData.find(n => n.id === id).color];
+        if (on) {
+            btn.classList.add('selected');
+            btn.style.boxShadow = `0 0 0 3px ${cfg.dot}44, 0 4px 14px rgba(0,0,0,0.6)`;
+            lbl.style.color = '#ffffff';
+            lbl.style.fontWeight = '900';
+        } else {
+            btn.classList.remove('selected');
+            btn.style.boxShadow = '';
+            lbl.style.color = '#6b7280';
+            lbl.style.fontWeight = '700';
+        }
+    }
+
+    function selectNode(id) {
+        if (selectedNodeId) setActive(selectedNodeId, false);
+        selectedNodeId = id;
+        setActive(id, true);
+
+        const node = chronologyData.find(n => n.id === id);
+        const cfg  = styleConfig[node.color];
+        const idx  = chronologyData.indexOf(node);
+
+        // Scroll timeline to center on selected node
+        viewport.scrollTo({ left: node.x * currentZoom - viewport.clientWidth / 2, behavior: 'smooth' });
+
+        // Show card, hide empty state
+        document.getElementById('empty-state').classList.add('hidden');
+        const pane = document.getElementById('detail-pane');
+        pane.classList.remove('hidden');
+        pane.style.animation = 'none';
+        pane.offsetHeight;
+        pane.style.animation = '';
+
+        // Scroll card area back to top so title is always first thing seen
+        document.getElementById('scroll-area').scrollTop = 0;
+
+        // Populate card fields
+        document.getElementById('detail-title').textContent = node.name;
+        document.getElementById('detail-year').textContent  = `Temporal Coordinates: ${node.year}`;
+        document.getElementById('detail-description').textContent = node.desc;
+
+        const gameEl = document.getElementById('detail-game');
+        if (node.game) { gameEl.textContent = `◈ ${node.game}`; gameEl.classList.remove('hidden'); }
+        else           { gameEl.classList.add('hidden'); }
+
+        const badge = document.getElementById('detail-badge');
+        badge.textContent = node.type;
+        badge.className   = `text-[9px] font-mono font-bold tracking-widest uppercase px-2 py-0.5 rounded border ${cfg.badge}`;
+
+        // Thumbnail
+        const imgCont = document.getElementById('detail-image-container');
+        const imgEl   = document.getElementById('detail-image');
+        if (node.image) { imgEl.src = node.image; imgCont.classList.remove('hidden'); }
+        else            { imgEl.src = '';          imgCont.classList.add('hidden'); }
+
+        // Branch links — shown when node has a `branches` array
+        const branchBox   = document.getElementById('detail-branches');
+        const branchLinks = document.getElementById('branch-links');
+        if (node.branches && node.branches.length > 0) {
+            branchLinks.innerHTML = '';
+            node.branches.forEach(b => {
+                const bcfg = styleConfig[b.color];
+                const btn  = document.createElement('button');
+                btn.className = `text-[9px] font-mono font-bold px-2.5 py-1 rounded border ${bcfg.badge} hover:opacity-80 active:opacity-60 transition-opacity`;
+                btn.innerHTML = `<span class="opacity-60">${b.dir}:</span> ${b.label} →`;
+                btn.addEventListener('click', () => selectNode(b.id));
+                branchLinks.appendChild(btn);
+            });
+            branchBox.classList.remove('hidden');
+        } else {
+            branchBox.classList.add('hidden');
+        }
+
+        // Nav strip — always visible counter + button states
+        document.getElementById('nav-counter').textContent = `${idx + 1} of ${chronologyData.length}`;
+        document.getElementById('btn-prev').disabled = idx <= 0;
+        document.getElementById('btn-next').disabled = idx >= chronologyData.length - 1;
+    }
+
+    function navigate(dir) {
+        const idx = chronologyData.findIndex(n => n.id === selectedNodeId);
+        const next = idx + dir;
+        if (next >= 0 && next < chronologyData.length) selectNode(chronologyData[next].id);
+    }
+
+    /* ─── swipe-to-navigate on the card scroll area ─── */
+    const scrollArea = document.getElementById('scroll-area');
+    let swipeTouchStartX = 0, swipeTouchStartY = 0;
+    scrollArea.addEventListener('touchstart', e => {
+        swipeTouchStartX = e.changedTouches[0].clientX;
+        swipeTouchStartY = e.changedTouches[0].clientY;
+    }, { passive: true });
+    scrollArea.addEventListener('touchend', e => {
+        const dx = swipeTouchStartX - e.changedTouches[0].clientX;
+        const dy = swipeTouchStartY - e.changedTouches[0].clientY;
+        // Only trigger on predominantly horizontal swipes (> 50px horizontal, less than 40px vertical)
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            if (dx > 0) navigate(1);   // swipe left  = next
+            else        navigate(-1);  // swipe right = prev
+        }
+    }, { passive: true });
+
+    function updateZoom() {
+        canvasEl.style.transform = `scale(${currentZoom})`;
+        sizerEl.style.width  = `${CANVAS_W * currentZoom}px`;
+        sizerEl.style.height = `${CANVAS_H * currentZoom}px`;
+        document.getElementById('zoom-readout').textContent = `${Math.round(currentZoom * 100)}%`;
+        document.querySelectorAll('.node-label').forEach(l => {
+            l.style.transform = `scale(${1 / currentZoom})`;
+        });
+    }
+
+    function adjustZoom(delta) {
+        currentZoom = Math.min(Math.max(currentZoom + delta, 0.25), 1.5);
+        updateZoom();
+        if (selectedNodeId) {
+            const node = chronologyData.find(n => n.id === selectedNodeId);
+            viewport.scrollTo({ left: node.x * currentZoom - viewport.clientWidth / 2, behavior: 'smooth' });
+        }
+    }
+
+    function resetZoom() {
+        currentZoom = 0.6;
+        updateZoom();
+        if (selectedNodeId) {
+            const node = chronologyData.find(n => n.id === selectedNodeId);
+            viewport.scrollTo({ left: node.x * currentZoom - viewport.clientWidth / 2, behavior: 'smooth' });
+        }
+    }
+
+    let dragging = false, dragStartX, dragScrollLeft;
+    viewport.addEventListener('mousedown', e => {
+        if (e.target.closest('button')) return;
+        dragging = true;
+        dragStartX     = e.pageX - viewport.offsetLeft;
+        dragScrollLeft = viewport.scrollLeft;
+        viewport.style.cursor = 'grabbing';
+    });
+    viewport.addEventListener('mouseleave', () => { dragging = false; viewport.style.cursor = 'grab'; });
+    viewport.addEventListener('mouseup',    () => { dragging = false; viewport.style.cursor = 'grab'; });
+    viewport.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        e.preventDefault();
+        viewport.scrollLeft = dragScrollLeft - (e.pageX - viewport.offsetLeft - dragStartX) * 1.4;
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'ArrowRight') { e.preventDefault(); navigate(1);  }
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); navigate(-1); }
+    });
+
+    initTree();
+    updateZoom();
+    viewport.scrollLeft = 0;
+    selectNode('departure');
+    </script>
+</body>
+</html>
